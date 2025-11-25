@@ -50,6 +50,7 @@ export default function App() {
     groupNo: '',
     date: new Date().toISOString().split('T')[0],
     destination: '',
+    personInCharge: '',
     status: '等待',
     recruitCount: 0,
     revenue: 0,
@@ -164,6 +165,7 @@ export default function App() {
         groupNo: formData.groupNo,
         date: formData.date,
         destination: formData.destination,
+        personInCharge: formData.personInCharge,
         status: formData.status,
         recruitCount: Number(formData.recruitCount),
         revenue: Number(formData.revenue),
@@ -212,6 +214,7 @@ export default function App() {
       groupNo: item.groupNo,
       date: item.date,
       destination: item.destination,
+      personInCharge: item.personInCharge || '',
       status: item.status,
       recruitCount: item.recruitCount,
       revenue: item.revenue,
@@ -234,6 +237,7 @@ export default function App() {
         '团号': g.groupNo,
         '发团日期': g.date,
         '目的地': g.destination,
+        '责任人': g.personInCharge || '',
         '状态': g.status,
         '招募人数': g.recruitCount,
         '总收入': g.revenue,
@@ -247,11 +251,12 @@ export default function App() {
     // 2. Create Sheet
     const ws = XLSX.utils.json_to_sheet(exportData);
     
-    // Optional: Adjust column widths (rough approximation)
+    // Optional: Adjust column widths
     const wscols = [
       {wch: 15}, // 团号
       {wch: 12}, // 日期
       {wch: 15}, // 目的地
+      {wch: 12}, // 责任人
       {wch: 8},  // 状态
       {wch: 10}, // 人数
       {wch: 12}, // 收入
@@ -323,12 +328,6 @@ export default function App() {
            </div>
         )}
 
-        {/* Header for mobile/tablet if needed, currently hidden as sidebar is fixed */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Dashboard Overview</h2>
-          <p className="text-slate-500 mt-1">Real-time insights into your travel groups</p>
-        </div>
-
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard 
@@ -398,6 +397,7 @@ export default function App() {
                   <th className="p-4 font-semibold">团号</th>
                   <th className="p-4 font-semibold">发团日期</th>
                   <th className="p-4 font-semibold">目的地</th>
+                  <th className="p-4 font-semibold">责任人</th>
                   <th className="p-4 font-semibold">状态</th>
                   <th className="p-4 font-semibold text-right">招募人数</th>
                   <th className="p-4 font-semibold text-right">总收入</th>
@@ -409,7 +409,7 @@ export default function App() {
               <tbody className="text-sm divide-y divide-slate-100">
                 {groups.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-12 text-center text-slate-400">
+                    <td colSpan={10} className="p-12 text-center text-slate-400">
                       {loading ? (
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -430,6 +430,7 @@ export default function App() {
                       <td className="p-4 font-medium text-slate-900">{group.groupNo}</td>
                       <td className="p-4 text-slate-600 font-mono text-xs">{group.date}</td>
                       <td className="p-4 text-slate-700 font-medium">{group.destination}</td>
+                      <td className="p-4 text-slate-700">{group.personInCharge || '-'}</td>
                       <td className="p-4"><StatusBadge status={group.status} /></td>
                       <td className="p-4 text-right text-slate-600">{group.recruitCount}</td>
                       <td className="p-4 text-right text-emerald-600 font-medium">{formatCurrency(group.revenue)}</td>

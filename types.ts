@@ -5,6 +5,7 @@ export interface TravelGroup {
   groupNo: string;
   date: string;
   destination: string;
+  personInCharge?: string;
   status: GroupStatus;
   recruitCount: number;
   revenue: number;
@@ -19,6 +20,7 @@ export interface TravelGroupFormData {
   groupNo: string;
   date: string;
   destination: string;
+  personInCharge: string;
   status: GroupStatus;
   recruitCount: number;
   revenue: number;
