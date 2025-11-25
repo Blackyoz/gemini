@@ -237,6 +237,13 @@ export default function App() {
     return Object.keys(statusMap).map(key => ({ name: key, value: statusMap[key] }));
   }, [displayedData, viewMode]);
 
+  // Determine Chart Title based on View Mode
+  const chartTitle = useMemo(() => {
+    if (viewMode === 'business') return '项目财务分析';
+    if (viewMode === 'total') return '财务分析总览';
+    return '各目的地财务分析';
+  }, [viewMode]);
+
   // -- Handlers --
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -550,6 +557,7 @@ export default function App() {
           barData={chartData} 
           pieData={viewMode === 'business' ? [] : pieData} // Hide pie for business view
           formatCurrency={formatCurrency} 
+          chartTitle={chartTitle}
         />
 
         {/* --- Data Table --- */}

@@ -8,9 +8,9 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+  PieChart, 
+  Pie, 
+  Cell 
 } from 'recharts';
 import { ChartDataPoint, StatusDataPoint } from '../types';
 
@@ -18,16 +18,17 @@ interface AnalyticsChartsProps {
   barData: ChartDataPoint[];
   pieData: StatusDataPoint[];
   formatCurrency: (val: number) => string;
+  chartTitle: string;
 }
 
 const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
 
-const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ barData, pieData, formatCurrency }) => {
+const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ barData, pieData, formatCurrency, chartTitle }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 h-auto lg:h-96">
       {/* Bar Chart */}
       <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
-        <h3 className="text-lg font-semibold text-slate-800 mb-6">各目的地财务分析</h3>
+        <h3 className="text-lg font-semibold text-slate-800 mb-6">{chartTitle}</h3>
         <div className="flex-1 min-h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData}>
