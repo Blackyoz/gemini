@@ -1,0 +1,5 @@
+{
+  "name": "Blackyoz Travel Cloud",
+  "description": "A real-time travel group management dashboard connected to Firebase Firestore. Features data visualization, financial tracking, and group status management.",
+  "requestFramePermissions": []
+}
