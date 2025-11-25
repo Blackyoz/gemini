@@ -42,6 +42,13 @@ import SidebarForm from './components/SidebarForm';
 
 type ViewMode = 'travel' | 'business' | 'total';
 
+// Helper for safe date sorting to prevent NaN errors
+const safeDateSort = (aDate: string, bDate: string) => {
+  const tA = new Date(aDate || '1970-01-01').getTime();
+  const tB = new Date(bDate || '1970-01-01').getTime();
+  return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+};
+
 export default function App() {
   // -- State --
   const [user, setUser] = useState<User | null>(null);
@@ -122,7 +129,7 @@ export default function App() {
             creatorId: data.creatorId
           };
         });
-        setTravelGroups(loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setTravelGroups(loaded.sort((a, b) => safeDateSort(a.date, b.date)));
       } catch (e) { console.error("Travel data error", e); }
       setLoading(false);
     }, (err) => { console.error("Travel fetch failed", err); });
@@ -144,7 +151,7 @@ export default function App() {
             creatorId: data.creatorId
           };
         });
-        setBusinessProjects(loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        setBusinessProjects(loaded.sort((a, b) => safeDateSort(a.date, b.date)));
       } catch (e) { console.error("Business data error", e); }
       setLoading(false);
     }, (err) => { console.error("Business fetch failed", err); });
@@ -165,8 +172,10 @@ export default function App() {
     else raw = [...travelGroups, ...businessProjects];
 
     // Filter by Month
-    if (selectedMonth === 'all') return raw.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return raw.filter(item => item.date.startsWith(selectedMonth)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (selectedMonth === 'all') return raw.sort((a, b) => safeDateSort(a.date, b.date));
+    return raw
+      .filter(item => item.date && item.date.startsWith(selectedMonth))
+      .sort((a, b) => safeDateSort(a.date, b.date));
   }, [viewMode, travelGroups, businessProjects, selectedMonth]);
 
   // 2. Available Months (from ALL data)
@@ -239,8 +248,8 @@ export default function App() {
       if (!map[name]) {
         map[name] = { name: name, revenue: 0, profit: 0 };
       }
-      map[name].revenue += item.revenue;
-      map[name].profit += (item.revenue - item.expense);
+      map[name].revenue += (item.revenue || 0);
+      map[name].profit += ((item.revenue || 0) - (item.expense || 0));
     });
     
     // Return top 20 by revenue to avoid clutter
@@ -265,7 +274,11 @@ export default function App() {
         statusMap['其他']++;
       }
     });
-    return Object.keys(statusMap).map(key => ({ name: key, value: statusMap[key] }));
+    
+    // Filter out zero values to prevent chart rendering issues with empty segments
+    return Object.keys(statusMap)
+      .map(key => ({ name: key, value: statusMap[key] }))
+      .filter(item => item.value > 0);
   }, [displayedData, viewMode]);
 
   // Determine Chart Title based on View Mode
@@ -404,7 +417,7 @@ export default function App() {
     }
 
     const exportFormatted = displayedData.map(item => {
-      const profit = item.revenue - item.expense;
+      const profit = (item.revenue || 0) - (item.expense || 0);
       const margin = item.revenue > 0 ? (profit / item.revenue * 100).toFixed(2) + '%' : '0%';
       
       const base = {

@@ -21,7 +21,7 @@ interface AnalyticsChartsProps {
   chartTitle: string;
 }
 
-const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
+const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
 const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ barData, pieData, formatCurrency, chartTitle }) => {
   return (
@@ -62,27 +62,33 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ barData, pieData, for
       {/* Pie Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
         <h3 className="text-lg font-semibold text-slate-800 mb-6">团单状态分布</h3>
-        <div className="flex-1 min-h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie 
-                data={pieData} 
-                cx="50%" 
-                cy="50%" 
-                innerRadius={60} 
-                outerRadius={80} 
-                paddingAngle={5} 
-                dataKey="value"
-                stroke="none"
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
-              <Legend verticalAlign="bottom" height={36} iconType="circle"/>
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="flex-1 min-h-[300px] flex items-center justify-center">
+          {pieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={pieData} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={60} 
+                  outerRadius={80} 
+                  paddingAngle={5} 
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
+                <Legend verticalAlign="bottom" height={36} iconType="circle"/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-slate-400 text-sm flex flex-col items-center">
+              <span>暂无状态数据</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
