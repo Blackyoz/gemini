@@ -200,7 +200,38 @@ export default function App() {
 
   // 4. Chart Data
   const chartData = useMemo(() => {
-    // Group by Name (Destination for Travel, Project Name for Business)
+    // Special Logic for Total View: Aggregate by Type (Travel vs Business)
+    if (viewMode === 'total') {
+      let travelRevenue = 0;
+      let travelExpense = 0;
+      let businessRevenue = 0;
+      let businessExpense = 0;
+
+      displayedData.forEach(item => {
+        if (item.type === 'travel') {
+          travelRevenue += (item.revenue || 0);
+          travelExpense += (item.expense || 0);
+        } else {
+          businessRevenue += (item.revenue || 0);
+          businessExpense += (item.expense || 0);
+        }
+      });
+
+      return [
+        { 
+          name: '旅行团业务', 
+          revenue: travelRevenue, 
+          profit: travelRevenue - travelExpense 
+        },
+        { 
+          name: '项目业务', 
+          revenue: businessRevenue, 
+          profit: businessRevenue - businessExpense 
+        }
+      ];
+    }
+
+    // Default Logic for Individual Views: Group by Name
     const map: Record<string, { name: string, revenue: number, profit: number }> = {};
     
     displayedData.forEach(item => {
@@ -216,7 +247,7 @@ export default function App() {
     return Object.values(map)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 20);
-  }, [displayedData]);
+  }, [displayedData, viewMode]);
 
   // 5. Pie Data (Only relevant for Travel View usually, or Total view showing split)
   const pieData = useMemo(() => {
