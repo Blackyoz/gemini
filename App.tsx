@@ -15,7 +15,8 @@ import {
   Filter,
   Briefcase,
   Map,
-  Building2
+  Building2,
+  Menu // Added Menu icon
 } from 'lucide-react';
 import { 
   collection, 
@@ -42,6 +43,40 @@ import SidebarForm from './components/SidebarForm';
 
 type ViewMode = 'travel' | 'business' | 'total';
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+// Error Boundary Component to prevent white screen crashes
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("App Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-red-50 rounded-xl m-8 border border-red-200">
+          <h2 className="text-xl font-bold text-red-700 mb-2">显示图表时遇到问题</h2>
+          <p className="text-red-600">请尝试刷新页面或检查数据录入是否有误。</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">刷新页面</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Helper for safe date sorting to prevent NaN errors
 const safeDateSort = (aDate: string, bDate: string) => {
   const tA = new Date(aDate || '1970-01-01').getTime();
@@ -65,6 +100,7 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('travel');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar state
 
   const initialFormState: GenericFormData = {
     id: null,
@@ -218,11 +254,11 @@ export default function App() {
 
       displayedData.forEach(item => {
         if (item.type === 'travel') {
-          travelRevenue += (item.revenue || 0);
-          travelExpense += (item.expense || 0);
+          travelRevenue += Number(item.revenue || 0);
+          travelExpense += Number(item.expense || 0);
         } else {
-          businessRevenue += (item.revenue || 0);
-          businessExpense += (item.expense || 0);
+          businessRevenue += Number(item.revenue || 0);
+          businessExpense += Number(item.expense || 0);
         }
       });
 
@@ -248,8 +284,8 @@ export default function App() {
       if (!map[name]) {
         map[name] = { name: name, revenue: 0, profit: 0 };
       }
-      map[name].revenue += (item.revenue || 0);
-      map[name].profit += ((item.revenue || 0) - (item.expense || 0));
+      map[name].revenue += Number(item.revenue || 0);
+      map[name].profit += (Number(item.revenue || 0) - Number(item.expense || 0));
     });
     
     // Return top 20 by revenue to avoid clutter
@@ -350,6 +386,9 @@ export default function App() {
       setFormData({ ...initialFormState, type: formData.type }); // Reset but keep current type
       setIsEditing(false);
       setSyncStatus('idle');
+      // On mobile, maybe we want to close sidebar after submit? 
+      // For now, let's keep it open so they can add more if needed, 
+      // or we can close it: setIsSidebarOpen(false);
     } catch (error: any) {
       console.error("Save failed:", error);
       alert(`Save failed: ${error.message}`);
@@ -408,6 +447,8 @@ export default function App() {
       });
     }
     setIsEditing(true);
+    // Open sidebar on mobile when editing
+    setIsSidebarOpen(true);
   };
 
   const handleExportExcel = () => {
@@ -457,14 +498,29 @@ export default function App() {
     XLSX.writeFile(wb, fileName);
   };
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(val);
+  const formatCurrency = (val: number) => {
+    // Check for NaN or invalid inputs to prevent crashes
+    if (val === undefined || val === null || isNaN(val)) return '¥0.00';
+    try {
+      return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(val);
+    } catch (e) {
+      return '¥' + val;
+    }
+  };
 
   if (authError) return <div className="p-10 text-center text-red-600">Error: {authError}</div>;
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
       
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       <SidebarForm 
         formData={formData}
         isEditing={isEditing}
@@ -476,11 +532,14 @@ export default function App() {
         onCancelEdit={() => {
           setFormData({ ...initialFormState, type: formData.type });
           setIsEditing(false);
+          if (window.innerWidth < 1024) setIsSidebarOpen(false); // Close sidebar on cancel if mobile
         }}
         formatCurrency={formatCurrency}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
-      <main className="flex-1 overflow-y-auto ml-80 p-8 relative">
+      <main className="flex-1 overflow-y-auto lg:ml-80 p-4 md:p-8 relative h-screen transition-all duration-300">
         {syncStatus === 'syncing' && (
            <div className="absolute top-6 right-8 bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm border border-blue-100 animate-pulse z-30">
              <RefreshCw className="w-3 h-3 animate-spin" /> SYNCING...
@@ -489,39 +548,51 @@ export default function App() {
 
         {/* --- Header Area --- */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-              南通广电国旅
-              <span className="text-slate-400 text-lg font-normal">|</span>
-              {viewMode === 'travel' && '旅行团业务'}
-              {viewMode === 'business' && '项目业务'}
-              {viewMode === 'total' && '公司总览'}
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              {selectedMonth === 'all' ? '所有历史数据' : `${selectedMonth} 月度数据`}
-            </p>
+          <div className="flex items-center gap-3">
+             {/* Mobile Menu Button */}
+             <button 
+               onClick={() => setIsSidebarOpen(true)}
+               className="p-2 -ml-2 mr-2 lg:hidden text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+             >
+               <Menu className="w-6 h-6" />
+             </button>
+             
+             <div>
+              <h1 className="text-lg md:text-2xl font-bold text-slate-800 tracking-tight flex flex-wrap items-center gap-2">
+                南通广电国旅
+                <span className="hidden sm:inline text-slate-400 text-lg font-normal">|</span>
+                <span className="text-slate-600 text-base md:text-xl">
+                  {viewMode === 'travel' && '旅行团业务'}
+                  {viewMode === 'business' && '项目业务'}
+                  {viewMode === 'total' && '公司总览'}
+                </span>
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                {selectedMonth === 'all' ? '所有历史数据' : `${selectedMonth} 月度数据`}
+              </p>
+            </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             {/* View Switcher */}
-            <div className="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm">
+            <div className="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm overflow-x-auto">
               <button 
                 onClick={() => setViewMode('travel')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'travel' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'travel' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
               >
-                <Map className="w-4 h-4" /> 旅行团
+                <Map className="w-4 h-4" /> <span className="hidden sm:inline">旅行团</span>
               </button>
               <button 
                 onClick={() => setViewMode('business')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'business' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'business' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
               >
-                <Briefcase className="w-4 h-4" /> 项目业务
+                <Briefcase className="w-4 h-4" /> <span className="hidden sm:inline">项目业务</span>
               </button>
               <button 
                 onClick={() => setViewMode('total')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'total' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === 'total' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
               >
-                <Building2 className="w-4 h-4" /> 公司总览
+                <Building2 className="w-4 h-4" /> <span className="hidden sm:inline">公司总览</span>
               </button>
             </div>
 
@@ -531,7 +602,7 @@ export default function App() {
               <select 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-sm font-semibold text-slate-700 outline-none cursor-pointer hover:text-blue-600"
+                className="bg-transparent text-sm font-semibold text-slate-700 outline-none cursor-pointer hover:text-blue-600 w-full sm:w-auto"
               >
                 <option value="all">全部月份</option>
                 {availableMonths.map(m => (
@@ -542,78 +613,80 @@ export default function App() {
           </div>
         </div>
 
-        {/* --- Stats Cards --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard 
-            title={viewMode === 'business' ? "项目总利润" : "净利润 (Net Profit)"} 
-            value={formatCurrency(stats.totalProfit)} 
-            icon={<DollarSign className="w-6 h-6 text-emerald-600" />} 
-            colorClass="bg-emerald-100" 
-            textColorClass="text-emerald-700" 
-          />
-          {viewMode === 'business' ? (
-             <StatCard 
-             title="项目总数" 
-             value={`${stats.projectCount} 个`} 
-             icon={<Briefcase className="w-6 h-6 text-indigo-600" />} 
-             colorClass="bg-indigo-100" 
-             textColorClass="text-indigo-700" 
-           />
-          ) : viewMode === 'travel' ? (
+        <ErrorBoundary>
+          {/* --- Stats Cards --- */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <StatCard 
-              title="累计招募人数" 
-              value={`${stats.totalPax} 人`} 
-              icon={<Users className="w-6 h-6 text-blue-600" />} 
-              colorClass="bg-blue-100" 
-              textColorClass="text-blue-700" 
+              title={viewMode === 'business' ? "项目总利润" : "净利润 (Net Profit)"} 
+              value={formatCurrency(stats.totalProfit)} 
+              icon={<DollarSign className="w-6 h-6 text-emerald-600" />} 
+              colorClass="bg-emerald-100" 
+              textColorClass="text-emerald-700" 
             />
-          ) : (
-            <StatCard 
-              title="业务总量 (团+项目)" 
-              value={`${stats.activeGroups + stats.projectCount} 单`} 
-              icon={<Building2 className="w-6 h-6 text-blue-600" />} 
-              colorClass="bg-blue-100" 
-              textColorClass="text-blue-700" 
-            />
-          )}
+            {viewMode === 'business' ? (
+               <StatCard 
+               title="项目总数" 
+               value={`${stats.projectCount} 个`} 
+               icon={<Briefcase className="w-6 h-6 text-indigo-600" />} 
+               colorClass="bg-indigo-100" 
+               textColorClass="text-indigo-700" 
+             />
+            ) : viewMode === 'travel' ? (
+              <StatCard 
+                title="累计招募人数" 
+                value={`${stats.totalPax} 人`} 
+                icon={<Users className="w-6 h-6 text-blue-600" />} 
+                colorClass="bg-blue-100" 
+                textColorClass="text-blue-700" 
+              />
+            ) : (
+              <StatCard 
+                title="业务总量 (团+项目)" 
+                value={`${stats.activeGroups + stats.projectCount} 单`} 
+                icon={<Building2 className="w-6 h-6 text-blue-600" />} 
+                colorClass="bg-blue-100" 
+                textColorClass="text-blue-700" 
+              />
+            )}
 
-          {viewMode === 'travel' && (
+            {viewMode === 'travel' && (
+              <StatCard 
+                title="已成团数量" 
+                value={`${stats.activeGroups} 个`} 
+                icon={<TrendingUp className="w-6 h-6 text-indigo-600" />} 
+                colorClass="bg-indigo-100" 
+                textColorClass="text-indigo-700" 
+              />
+            )}
+            
             <StatCard 
-              title="已成团数量" 
-              value={`${stats.activeGroups} 个`} 
-              icon={<TrendingUp className="w-6 h-6 text-indigo-600" />} 
-              colorClass="bg-indigo-100" 
-              textColorClass="text-indigo-700" 
+              title="平均利润率" 
+              value={stats.totalRevenue > 0 ? (stats.totalProfit / stats.totalRevenue * 100).toFixed(1) + '%' : '0%'} 
+              icon={<PieIcon className="w-6 h-6 text-purple-600" />} 
+              colorClass="bg-purple-100" 
+              textColorClass="text-purple-700" 
             />
-          )}
-          
-          <StatCard 
-            title="平均利润率" 
-            value={stats.totalRevenue > 0 ? (stats.totalProfit / stats.totalRevenue * 100).toFixed(1) + '%' : '0%'} 
-            icon={<PieIcon className="w-6 h-6 text-purple-600" />} 
-            colorClass="bg-purple-100" 
-            textColorClass="text-purple-700" 
-          />
-        </div>
+          </div>
 
-        {/* --- Charts --- */}
-        <AnalyticsCharts 
-          barData={chartData} 
-          pieData={viewMode === 'business' ? [] : pieData} // Hide pie for business view
-          formatCurrency={formatCurrency} 
-          chartTitle={chartTitle}
-        />
+          {/* --- Charts --- */}
+          <AnalyticsCharts 
+            barData={chartData} 
+            pieData={viewMode === 'business' ? [] : pieData} // Hide pie for business view
+            formatCurrency={formatCurrency} 
+            chartTitle={chartTitle}
+          />
+        </ErrorBoundary>
 
         {/* --- Data Table --- */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+          <div className="p-4 md:p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/50">
             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <LayoutDashboard className="w-5 h-5 text-slate-500" />
               详细数据列表
             </h3>
             <button 
               onClick={handleExportExcel}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
             >
               <FileDown className="w-4 h-4" />
               导出当前视图 Excel
@@ -621,7 +694,7 @@ export default function App() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
                   <th className="p-4">日期</th>
@@ -680,7 +753,7 @@ export default function App() {
                       <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(item.revenue - item.expense)}</td>
                       
                       <td className="p-4 text-center">
-                        <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <button onClick={() => handleEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
                           <button onClick={() => handleDelete(item)} className="p-2 text-rose-600 hover:bg-rose-50 rounded"><Trash2 className="w-4 h-4" /></button>
                         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, Edit, Cloud, RefreshCw, Save, Briefcase, Map } from 'lucide-react';
+import { PlusCircle, Edit, Cloud, RefreshCw, Save, Briefcase, Map, X } from 'lucide-react';
 import { GenericFormData, EntryType } from '../types';
 
 interface SidebarFormProps {
@@ -12,6 +12,8 @@ interface SidebarFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onCancelEdit: () => void;
   formatCurrency: (val: number) => string;
+  isOpen: boolean; // New prop for mobile visibility
+  onClose: () => void; // New prop to close on mobile
 }
 
 const SidebarForm: React.FC<SidebarFormProps> = ({
@@ -23,28 +25,51 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
   onTypeChange,
   onSubmit,
   onCancelEdit,
-  formatCurrency
+  formatCurrency,
+  isOpen,
+  onClose
 }) => {
   const profit = formData.revenue - formData.expense;
   const isProfitable = profit >= 0;
 
+  // Responsive classes:
+  // Mobile: fixed, starts off-screen (-translate-x-full), slides in (translate-x-0) based on isOpen
+  // Desktop (lg): always translate-x-0, fixed position implied but handled by parent layout usually, 
+  // here we keep fixed logic but ensure z-index handles overlap on mobile.
+  const sidebarClasses = `
+    fixed inset-y-0 left-0 z-50
+    w-80 bg-white shadow-2xl flex flex-col border-r border-slate-200
+    transition-transform duration-300 ease-in-out
+    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+    lg:translate-x-0 lg:shadow-xl
+  `;
+
   return (
-    <aside className="w-80 bg-white shadow-xl flex flex-col z-20 border-r border-slate-200 h-full fixed left-0 top-0 overflow-y-auto">
-      <div className="p-6 bg-slate-900 text-white">
-        <h1 className="text-xl font-bold flex items-center gap-3 tracking-tight">
-          <Cloud className="w-6 h-6 text-blue-400" />
-          南通广电国旅
-        </h1>
-        <div className="flex items-center gap-3 mt-4 bg-slate-800/50 p-3 rounded-lg border border-slate-700 backdrop-blur-sm">
-          <div className={`h-2.5 w-2.5 rounded-full ${user ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400 animate-pulse'}`}></div>
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cloud System</span>
-            <span className="text-xs text-white font-mono tracking-wide">Blackyoz / Admin</span>
+    <aside className={sidebarClasses}>
+      <div className="p-6 bg-slate-900 text-white flex justify-between items-start">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-3 tracking-tight">
+            <Cloud className="w-6 h-6 text-blue-400" />
+            南通广电国旅
+          </h1>
+          <div className="flex items-center gap-3 mt-4 bg-slate-800/50 p-3 rounded-lg border border-slate-700 backdrop-blur-sm">
+            <div className={`h-2.5 w-2.5 rounded-full ${user ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400 animate-pulse'}`}></div>
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cloud System</span>
+              <span className="text-xs text-white font-mono tracking-wide">Blackyoz / Admin</span>
+            </div>
           </div>
         </div>
+        {/* Mobile Close Button */}
+        <button 
+          onClick={onClose}
+          className="lg:hidden text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
       </div>
 
-      <div className="p-6 flex-1">
+      <div className="p-6 flex-1 overflow-y-auto">
         <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-800">
           {isEditing ? <Edit className="w-5 h-5 text-blue-600" /> : <PlusCircle className="w-5 h-5 text-emerald-600" />}
           {isEditing ? '编辑信息' : '数据录入'}
@@ -256,7 +281,7 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
       </div>
       
       {/* Bottom Footer */}
-      <div className="p-4 border-t border-slate-200 text-center">
+      <div className="p-4 border-t border-slate-200 text-center bg-white">
          <p className="text-xs text-slate-400">© 南通广电国旅 Cloud System</p>
       </div>
     </aside>
