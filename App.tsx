@@ -10,7 +10,8 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
-  Loader2
+  Loader2,
+  FileDown
 } from 'lucide-react';
 import { 
   collection, 
@@ -25,6 +26,8 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
+import * as XLSX from 'xlsx';
+
 import { auth, db } from './services/firebase';
 import { TravelGroup, TravelGroupFormData, GroupStatus } from './types';
 
@@ -217,6 +220,57 @@ export default function App() {
     setIsEditing(true);
   };
 
+  const handleExportExcel = () => {
+    if (groups.length === 0) {
+      alert("暂无数据可导出");
+      return;
+    }
+
+    // 1. Format data for Excel
+    const exportData = groups.map(g => {
+      const profit = g.revenue - g.expense;
+      const margin = g.revenue > 0 ? (profit / g.revenue * 100).toFixed(2) + '%' : '0%';
+      return {
+        '团号': g.groupNo,
+        '发团日期': g.date,
+        '目的地': g.destination,
+        '状态': g.status,
+        '招募人数': g.recruitCount,
+        '总收入': g.revenue,
+        '总支出': g.expense,
+        '毛利润': profit,
+        '利润率': margin,
+        '创建时间': g.createdAt ? new Date(g.createdAt).toLocaleString('zh-CN') : ''
+      };
+    });
+
+    // 2. Create Sheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // Optional: Adjust column widths (rough approximation)
+    const wscols = [
+      {wch: 15}, // 团号
+      {wch: 12}, // 日期
+      {wch: 15}, // 目的地
+      {wch: 8},  // 状态
+      {wch: 10}, // 人数
+      {wch: 12}, // 收入
+      {wch: 12}, // 支出
+      {wch: 12}, // 利润
+      {wch: 10}, // 利润率
+      {wch: 20}  // 创建时间
+    ];
+    ws['!cols'] = wscols;
+
+    // 3. Create Workbook and Append Sheet
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "团单列表");
+
+    // 4. Download
+    const fileName = `Blackyoz_Travel_Groups_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(val);
 
@@ -317,13 +371,24 @@ export default function App() {
         {/* Data Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <LayoutDashboard className="w-5 h-5 text-slate-500" />
-              最近团单
-            </h3>
-            <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-              共 {groups.length} 条记录
-            </span>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5 text-slate-500" />
+                最近团单
+              </h3>
+              <span className="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+                共 {groups.length} 条记录
+              </span>
+            </div>
+            
+            <button 
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+              title="导出为 Excel"
+            >
+              <FileDown className="w-4 h-4" />
+              导出 Excel
+            </button>
           </div>
           
           <div className="overflow-x-auto">
