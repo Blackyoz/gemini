@@ -1,13 +1,14 @@
 import React from 'react';
-import { PlusCircle, Edit, Cloud, RefreshCw, Save } from 'lucide-react';
-import { TravelGroupFormData } from '../types';
+import { PlusCircle, Edit, Cloud, RefreshCw, Save, Briefcase, Map } from 'lucide-react';
+import { GenericFormData, EntryType } from '../types';
 
 interface SidebarFormProps {
-  formData: TravelGroupFormData;
+  formData: GenericFormData;
   isEditing: boolean;
   syncStatus: 'idle' | 'syncing' | 'error';
   user: any;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onTypeChange: (type: EntryType) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancelEdit: () => void;
   formatCurrency: (val: number) => string;
@@ -19,6 +20,7 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
   syncStatus,
   user,
   onInputChange,
+  onTypeChange,
   onSubmit,
   onCancelEdit,
   formatCurrency
@@ -31,13 +33,13 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
       <div className="p-6 bg-slate-900 text-white">
         <h1 className="text-xl font-bold flex items-center gap-3 tracking-tight">
           <Cloud className="w-6 h-6 text-blue-400" />
-          Blackyoz Cloud
+          南通广电国旅
         </h1>
         <div className="flex items-center gap-3 mt-4 bg-slate-800/50 p-3 rounded-lg border border-slate-700 backdrop-blur-sm">
           <div className={`h-2.5 w-2.5 rounded-full ${user ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400 animate-pulse'}`}></div>
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Project ID</span>
-            <span className="text-xs text-white font-mono tracking-wide">blackyoz</span>
+            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cloud System</span>
+            <span className="text-xs text-white font-mono tracking-wide">Blackyoz / Admin</span>
           </div>
         </div>
       </div>
@@ -45,25 +47,98 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
       <div className="p-6 flex-1">
         <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-800">
           {isEditing ? <Edit className="w-5 h-5 text-blue-600" /> : <PlusCircle className="w-5 h-5 text-emerald-600" />}
-          {isEditing ? '编辑团信息' : '录入新团'}
+          {isEditing ? '编辑信息' : '数据录入'}
         </h2>
 
-        <form onSubmit={onSubmit} className="space-y-5">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">团号</label>
-            <input 
-              required 
-              type="text" 
-              name="groupNo" 
-              value={formData.groupNo} 
-              onChange={onInputChange} 
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
-              placeholder="TG-2023001" 
-            />
+        {/* Type Toggles - Only show if not editing, or allow switching if new */}
+        {!isEditing && (
+          <div className="flex p-1 bg-slate-100 rounded-lg mb-6">
+            <button
+              type="button"
+              onClick={() => onTypeChange('travel')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-md transition-all ${
+                formData.type === 'travel' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Map className="w-3 h-3" />
+              旅行团
+            </button>
+            <button
+              type="button"
+              onClick={() => onTypeChange('business')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-md transition-all ${
+                formData.type === 'business' 
+                  ? 'bg-white text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Briefcase className="w-3 h-3" />
+              业务项目
+            </button>
           </div>
+        )}
+
+        {isEditing && (
+          <div className="mb-6 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-500 uppercase tracking-wide">
+            正在编辑: {formData.type === 'travel' ? '旅行团信息' : '业务项目'}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-5">
           
+          {/* --- Fields for Travel Group --- */}
+          {formData.type === 'travel' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">团号</label>
+                <input 
+                  required 
+                  type="text" 
+                  name="groupNo" 
+                  value={formData.groupNo} 
+                  onChange={onInputChange} 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
+                  placeholder="TG-2023001" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">目的地</label>
+                <input 
+                  required 
+                  type="text" 
+                  name="destination" 
+                  value={formData.destination} 
+                  onChange={onInputChange} 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
+                  placeholder="例如: 日本大阪" 
+                />
+              </div>
+            </>
+          )}
+
+          {/* --- Fields for Business Project --- */}
+          {formData.type === 'business' && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">项目名称</label>
+              <input 
+                required 
+                type="text" 
+                name="projectName" 
+                value={formData.projectName} 
+                onChange={onInputChange} 
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
+                placeholder="例如: 某某公司会议服务" 
+              />
+            </div>
+          )}
+
+          {/* --- Common Fields --- */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">发团日期</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              {formData.type === 'travel' ? '发团日期' : '项目日期'}
+            </label>
             <input 
               required 
               type="date" 
@@ -75,20 +150,9 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">目的地</label>
-            <input 
-              required 
-              type="text" 
-              name="destination" 
-              value={formData.destination} 
-              onChange={onInputChange} 
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
-              placeholder="例如: 日本大阪" 
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">责任人</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              {formData.type === 'travel' ? '责任人' : '负责人'}
+            </label>
             <input 
               type="text" 
               name="personInCharge" 
@@ -99,33 +163,42 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</label>
-            <select 
-              name="status" 
-              value={formData.status} 
-              onChange={onInputChange} 
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm bg-white"
-            >
-              <option value="等待">等待中</option>
-              <option value="成团">已成团</option>
-              <option value="取消">已取消</option>
-            </select>
-          </div>
+          {/* Status only for Travel Groups */}
+          {formData.type === 'travel' && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</label>
+              <select 
+                name="status" 
+                value={formData.status} 
+                onChange={onInputChange} 
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm bg-white"
+              >
+                <option value="等待">等待中</option>
+                <option value="成团">已成团</option>
+                <option value="取消">已取消</option>
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-            <div className="col-span-2 space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">招募人数</label>
-              <input 
-                type="number" 
-                name="recruitCount" 
-                value={formData.recruitCount} 
-                onChange={onInputChange} 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">总收入</label>
+            {/* Recruit Count only for Travel */}
+            {formData.type === 'travel' && (
+              <div className="col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">招募人数</label>
+                <input 
+                  type="number" 
+                  name="recruitCount" 
+                  value={formData.recruitCount} 
+                  onChange={onInputChange} 
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm" 
+                />
+              </div>
+            )}
+
+            <div className={`${formData.type === 'business' ? 'col-span-2' : ''} space-y-1`}>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                {formData.type === 'travel' ? '总收入' : '项目收款'}
+              </label>
               <input 
                 type="number" 
                 name="revenue" 
@@ -134,8 +207,10 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-sm bg-emerald-50/50 text-emerald-700 font-medium" 
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">总支出</label>
+            <div className={`${formData.type === 'business' ? 'col-span-2' : ''} space-y-1`}>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                {formData.type === 'travel' ? '总支出' : '项目支出'}
+              </label>
               <input 
                 type="number" 
                 name="expense" 
@@ -148,7 +223,9 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
 
           <div className={`p-4 rounded-lg text-sm border ${isProfitable ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} transition-colors duration-300`}>
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 font-medium">预计毛利润</span>
+              <span className="text-slate-500 font-medium">
+                {formData.type === 'travel' ? '预计毛利润' : '项目利润'}
+              </span>
               <span className={`font-bold text-lg ${isProfitable ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {formatCurrency(profit)}
               </span>
@@ -180,7 +257,7 @@ const SidebarForm: React.FC<SidebarFormProps> = ({
       
       {/* Bottom Footer */}
       <div className="p-4 border-t border-slate-200 text-center">
-         <p className="text-xs text-slate-400">Connected to Google Firebase</p>
+         <p className="text-xs text-slate-400">© 南通广电国旅 Cloud System</p>
       </div>
     </aside>
   );
