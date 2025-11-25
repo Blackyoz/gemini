@@ -88,17 +88,41 @@ export default function App() {
     const q = collection(db, 'travel_groups');
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedGroups = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as TravelGroup[];
-      
-      // Sort by date descending
-      loadedGroups.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      setGroups(loadedGroups);
-      setLoading(false);
-      setSyncStatus('idle');
+      try {
+        const loadedGroups = snapshot.docs.map(doc => {
+          const data = doc.data();
+          // Data sanitization to prevent render crashes
+          return {
+            id: doc.id,
+            groupNo: data.groupNo || '',
+            date: data.date || '',
+            destination: data.destination || '',
+            personInCharge: data.personInCharge || '',
+            status: data.status || '等待',
+            // Ensure numbers are actually numbers to prevent NaN crashes in charts
+            recruitCount: Number(data.recruitCount) || 0,
+            revenue: Number(data.revenue) || 0,
+            expense: Number(data.expense) || 0,
+            createdAt: data.createdAt,
+            creatorId: data.creatorId
+          };
+        }) as TravelGroup[];
+        
+        // Sort by date descending (safely)
+        loadedGroups.sort((a, b) => {
+          const timeA = new Date(a.date).getTime() || 0;
+          const timeB = new Date(b.date).getTime() || 0;
+          return timeB - timeA;
+        });
+        
+        setGroups(loadedGroups);
+        setLoading(false);
+        setSyncStatus('idle');
+      } catch (err) {
+        console.error("Error processing data:", err);
+        // Don't block UI if sorting fails
+        setLoading(false);
+      }
     }, (error: any) => {
       console.error("Data fetch failed:", error);
       if (error.code === 'permission-denied') {
@@ -115,10 +139,10 @@ export default function App() {
 
   // -- Computed Stats --
   const stats = useMemo(() => {
-    const totalRevenue = groups.reduce((acc, curr) => acc + Number(curr.revenue || 0), 0);
-    const totalExpense = groups.reduce((acc, curr) => acc + Number(curr.expense || 0), 0);
+    const totalRevenue = groups.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+    const totalExpense = groups.reduce((acc, curr) => acc + (curr.expense || 0), 0);
     const totalProfit = totalRevenue - totalExpense;
-    const totalPax = groups.reduce((acc, curr) => acc + Number(curr.recruitCount || 0), 0);
+    const totalPax = groups.reduce((acc, curr) => acc + (curr.recruitCount || 0), 0);
     const activeGroups = groups.filter(g => g.status === '成团').length;
     return { totalRevenue, totalExpense, totalProfit, totalPax, activeGroups };
   }, [groups]);
@@ -126,11 +150,12 @@ export default function App() {
   const chartData = useMemo(() => {
     const destMap: Record<string, { name: string, revenue: number, profit: number }> = {};
     groups.forEach(g => {
-      if (!destMap[g.destination]) {
-        destMap[g.destination] = { name: g.destination, revenue: 0, profit: 0 };
+      const destName = g.destination || '未知';
+      if (!destMap[destName]) {
+        destMap[destName] = { name: destName, revenue: 0, profit: 0 };
       }
-      destMap[g.destination].revenue += Number(g.revenue || 0);
-      destMap[g.destination].profit += (Number(g.revenue || 0) - Number(g.expense || 0));
+      destMap[destName].revenue += (g.revenue || 0);
+      destMap[destName].profit += ((g.revenue || 0) - (g.expense || 0));
     });
     return Object.values(destMap);
   }, [groups]);
@@ -138,7 +163,13 @@ export default function App() {
   const pieData = useMemo(() => {
     const statusMap: Record<string, number> = { '成团': 0, '等待': 0, '取消': 0 };
     groups.forEach(g => {
-      if (statusMap[g.status] !== undefined) statusMap[g.status]++;
+      const s = g.status || '等待';
+      if (statusMap[s] !== undefined) statusMap[s]++;
+      else {
+        // Handle unexpected statuses gracefully
+        if (!statusMap['其他']) statusMap['其他'] = 0;
+        statusMap['其他']++;
+      }
     });
     return Object.keys(statusMap).map(key => ({ name: key, value: statusMap[key] }));
   }, [groups]);
@@ -165,11 +196,11 @@ export default function App() {
         groupNo: formData.groupNo,
         date: formData.date,
         destination: formData.destination,
-        personInCharge: formData.personInCharge,
+        personInCharge: formData.personInCharge || '',
         status: formData.status,
-        recruitCount: Number(formData.recruitCount),
-        revenue: Number(formData.revenue),
-        expense: Number(formData.expense),
+        recruitCount: Number(formData.recruitCount) || 0,
+        revenue: Number(formData.revenue) || 0,
+        expense: Number(formData.expense) || 0,
         updatedAt: new Date().toISOString()
       };
 
@@ -184,8 +215,10 @@ export default function App() {
           creatorId: user.uid
         });
       }
+      // Reset form and UI state safely
       setFormData(initialFormState);
       setIsEditing(false);
+      setSyncStatus('idle'); // Crucial: Unlock the UI
     } catch (error: any) {
       console.error("Save failed:", error);
       alert(`Save failed: ${error.message}`);
@@ -202,6 +235,7 @@ export default function App() {
         setFormData(initialFormState);
         setIsEditing(false);
       }
+      setSyncStatus('idle');
     } catch (error) {
       console.error("Delete failed:", error);
       setSyncStatus('error');
